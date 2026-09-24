@@ -1,4 +1,4 @@
-const CACHE = 'continue-shell-v1.3';
+const CACHE = 'continue-shell-v1.4-splash';
 const APP_PATH = '/CONTINUE/';
 const CORE = [
   APP_PATH,
@@ -78,6 +78,9 @@ self.addEventListener('fetch', event => {
 
   // Only own GitHub Pages shell. GAS iframe remains untouched.
   if (url.origin !== self.location.origin) return;
+
+  // Preserve native media/range handling for the launch movie.
+  if (url.pathname.endsWith('.mp4')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(navigationNetworkFirst(request));
