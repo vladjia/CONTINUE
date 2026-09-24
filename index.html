@@ -349,9 +349,12 @@
 
   if ('serviceWorker' in navigator){
     let swReloading = false;
+    /* 第一次安裝時，controller 從「沒有」變成「有」也會觸發 controllerchange ——
+       那不是改版，不要重新整理，不然開場會播兩次。 */
+    const hadController = !!navigator.serviceWorker.controller;
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (swReloading) return;
+      if (swReloading || !hadController) return;
       swReloading = true;
       // New worker has taken control: reload once so the visible UI is the new build.
       location.reload();
