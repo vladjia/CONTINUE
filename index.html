@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#09090b">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CONTINUE">
+  <title>CONTINUE ROOM</title>
+
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon-32.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <style>
+    :root{
+      --bg:#09090b;
+      --panel:#111114;
+      --line:#28282f;
+      --gold:#e3ad2e;
+      --text:#f5f4f0;
+      --muted:#8f8e95;
+    }
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;
+      width:100%;
+      height:100%;
+      background:var(--bg);
+      color:var(--text);
+      font-family:Inter,"Noto Sans TC","Segoe UI",system-ui,sans-serif;
+      overflow:hidden;
+    }
+    body{
+      min-height:100dvh;
+      padding:
+        env(safe-area-inset-top)
+        env(safe-area-inset-right)
+        env(safe-area-inset-bottom)
+        env(safe-area-inset-left);
+    }
+    #app{
+      position:fixed;
+      inset:
+        env(safe-area-inset-top)
+        env(safe-area-inset-right)
+        env(safe-area-inset-bottom)
+        env(safe-area-inset-left);
+      background:var(--bg);
+    }
+    #room{
+      width:100%;
+      height:100%;
+      border:0;
+      display:none;
+      background:var(--bg);
+    }
+    #setup{
+      height:100%;
+      display:grid;
+      place-items:center;
+      padding:24px;
+      background:
+        radial-gradient(circle at 50% 20%, rgba(227,173,46,.09), transparent 32%),
+        var(--bg);
+    }
+    .card{
+      width:min(520px,100%);
+      border:1px solid var(--line);
+      background:rgba(17,17,20,.96);
+      border-radius:24px;
+      padding:28px;
+      box-shadow:0 28px 80px rgba(0,0,0,.42);
+    }
+    .mark{
+      width:76px;
+      height:76px;
+      object-fit:contain;
+      display:block;
+      margin-bottom:18px;
+    }
+    h1{
+      margin:0;
+      font-size:25px;
+      letter-spacing:.08em;
+    }
+    .gold{color:var(--gold)}
+    p{
+      margin:10px 0 22px;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.65;
+    }
+    label{
+      display:block;
+      font-size:12px;
+      color:#b8b7bd;
+      margin-bottom:7px;
+    }
+    input{
+      width:100%;
+      height:50px;
+      border:1px solid var(--line);
+      border-radius:13px;
+      background:#0b0b0d;
+      color:white;
+      padding:0 14px;
+      font-size:16px;
+      outline:none;
+    }
+    input:focus{border-color:#725a25}
+    .actions{
+      display:flex;
+      gap:10px;
+      margin-top:13px;
+    }
+    button{
+      height:48px;
+      border-radius:13px;
+      border:1px solid var(--line);
+      padding:0 18px;
+      background:#17171b;
+      color:#eee;
+      font-weight:800;
+      cursor:pointer;
+    }
+    button.primary{
+      flex:1;
+      border-color:#b48321;
+      background:var(--gold);
+      color:#111;
+    }
+    .hint{
+      margin-top:16px;
+      font-size:11px;
+      line-height:1.55;
+      color:#686870;
+    }
+    #menu{
+      position:fixed;
+      top:calc(8px + env(safe-area-inset-top));
+      right:calc(8px + env(safe-area-inset-right));
+      z-index:10;
+      width:38px;
+      height:38px;
+      border-radius:12px;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(10,10,12,.78);
+      color:#bbb;
+      font-size:19px;
+      backdrop-filter:blur(12px);
+      padding:0;
+    }
+    #menu:hover{color:white;border-color:#725a25}
+    #toast{
+      position:fixed;
+      z-index:20;
+      left:50%;
+      bottom:calc(22px + env(safe-area-inset-bottom));
+      transform:translateX(-50%);
+      background:#19191d;
+      border:1px solid var(--line);
+      color:#ddd;
+      border-radius:999px;
+      padding:9px 14px;
+      font-size:12px;
+      opacity:0;
+      pointer-events:none;
+      transition:.2s;
+    }
+    #toast.show{opacity:1}
+  </style>
+</head>
+<body>
+<div id="app">
+  <iframe
+    id="room"
+    title="CONTINUE ROOM"
+    allow="clipboard-read; clipboard-write"
+    referrerpolicy="strict-origin-when-cross-origin">
+  </iframe>
+
+  <section id="setup">
+    <div class="card">
+      <img class="mark" src="./icons/icon-192.png" alt="CONTINUE">
+      <h1>CONTINUE <span class="gold">ROOM</span></h1>
+      <p>
+        第一次設定只要貼入你的 Google Apps Script Web App
+        <b>/exec</b> 網址。這個網址只存在目前裝置的 localStorage，
+        不會被寫進 GitHub repository。
+      </p>
+
+      <label for="gasUrl">GAS Web App URL</label>
+      <input id="gasUrl"
+        inputmode="url"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        placeholder="https://script.google.com/macros/s/.../exec">
+
+      <div class="actions">
+        <button class="primary" id="connectBtn">進入 CONTINUE</button>
+      </div>
+
+      <div class="hint">
+        若之後重新部署 GAS 而網址改變，可按右上角「⋯」重新設定。
+        GitHub Pages 本身只負責 PWA 外殼；聊天室內容仍由 GAS 載入。
+      </div>
+    </div>
+  </section>
+
+  <button id="menu" aria-label="重新設定">⋯</button>
+  <div id="toast"></div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'continue_room_gas_url_v1';
+
+  const room = document.getElementById('room');
+  const setup = document.getElementById('setup');
+  const gasInput = document.getElementById('gasUrl');
+  const connectBtn = document.getElementById('connectBtn');
+  const menu = document.getElementById('menu');
+  const toast = document.getElementById('toast');
+
+  function toastMsg(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'),1800);
+  }
+
+  function normalizeGasUrl(raw){
+    const v = String(raw || '').trim();
+    if (!v) return '';
+    try{
+      const u = new URL(v);
+      if (u.protocol !== 'https:') return '';
+      return u.href;
+    }catch(e){
+      return '';
+    }
+  }
+
+  function openRoom(url){
+    room.src = url;
+    room.style.display = 'block';
+    setup.style.display = 'none';
+    menu.style.display = 'flex';
+  }
+
+  function showSetup(){
+    const saved = localStorage.getItem(STORAGE_KEY) || '';
+    gasInput.value = saved;
+    room.style.display = 'none';
+    room.src = 'about:blank';
+    setup.style.display = 'grid';
+    menu.style.display = 'none';
+    setTimeout(()=>gasInput.focus(),80);
+  }
+
+  function connect(){
+    const url = normalizeGasUrl(gasInput.value);
+    if (!url){
+      toastMsg('請貼入有效的 https:// GAS /exec 網址');
+      return;
+    }
+    localStorage.setItem(STORAGE_KEY, url);
+    openRoom(url);
+  }
+
+  connectBtn.addEventListener('click', connect);
+  gasInput.addEventListener('keydown', e=>{
+    if(e.key === 'Enter') connect();
+  });
+
+  menu.addEventListener('click', ()=>{
+    if(confirm('要重新設定 CONTINUE ROOM 的 GAS 網址嗎？')){
+      showSetup();
+    }
+  });
+
+  const saved = normalizeGasUrl(localStorage.getItem(STORAGE_KEY));
+  if(saved) openRoom(saved);
+  else showSetup();
+
+  if ('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('./sw.js').catch(console.warn);
+    });
+  }
+</script>
+</body>
+</html>
