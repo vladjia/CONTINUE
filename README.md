@@ -1,48 +1,34 @@
-# CONTINUE PWA SHELL v1.2 — Android / Chrome Fix
+# CONTINUE PWA SHELL v1.3 — Android Launch Fix
 
-這版針對「GitHub Pages 瀏覽器能開，但 Android Chrome PWA 無法安裝／無法開啟應用程式」調整。
+這版針對 GitHub Pages 專案網址：
 
-## 主要修正
+`https://vladjia.github.io/CONTINUE/`
 
-- Manifest 加入穩定 `id: "./"`
-- `start_url` 改為明確的 `./index.html?pwa=1`
-- 保留 `scope: "./"`，適合 GitHub Pages 專案子路徑
-- 192 / 512 icon 明確標示 `purpose: "any"`
-- 512 maskable icon 獨立保留
-- Service Worker 不再使用 `cache.addAll()`
-- 任一暫時 404 / 尚未同步的素材，不會讓整個 SW 安裝失敗
-- 保留 skipWaiting / clients.claim / 自動更新
-- 頁面初次設定畫面會顯示 PWA 基本狀態檢查
+把 PWA 身分與啟動路徑全部鎖死在 `/CONTINUE/`。
 
-## 更新 GitHub
+## 關鍵修正
+- manifest `id`: `/CONTINUE/`
+- manifest `start_url`: `/CONTINUE/`
+- manifest `scope`: `/CONTINUE/`
+- icon 改成 `/CONTINUE/icons/...`
+- Service Worker 固定 `/CONTINUE/sw.js`
+- Service Worker scope 固定 `/CONTINUE/`
+- 移除 start_url query 參數
+- PWA 外殼的 `⋯` 設定鈕下移，不再蓋住 GAS Header 四人頭像
+- 自動更新與 Network First 保留
 
-直接把 ZIP 內所有檔案覆蓋 repository 根目錄：
-- index.html
-- manifest.webmanifest
-- sw.js
-- icons/
+## 這次 Android 測試要做一次乾淨重置
+因為前一版 manifest 的 app identity 已經不同，Android Chrome 可能仍保留舊的 Web App 記錄。
 
-commit / push 後，等 GitHub Pages 部署完成。
+1. 先把本 ZIP 全部覆蓋 GitHub repo 根目錄並 push。
+2. 等 GitHub Pages 部署完成。
+3. Android：如果系統「設定 → 應用程式」裡看得到 CONTINUE，先解除安裝那個舊的失敗版本。
+4. Chrome → 此網站的網站設定 → 清除 `vladjia.github.io` 的網站資料。
+5. 重新開 `https://vladjia.github.io/CONTINUE/`
+6. 再執行「安裝應用程式」。
 
-## Android Chrome 測試
+這次清理是因為我們修正了 PWA `id`；後續正常 UI / 程式更新不需要再移除安裝。
 
-1. 先在 Chrome 開 GitHub Pages 網址。
-2. 若你之前開過舊版：
-   - Chrome 網站設定 → 該網站 → 清除資料（只需測試期間做這一次）
-   - 或改用無痕視窗先確認新版載入。
-3. 重新開頁面。
-4. 第一次設定頁底下應看到：
-   `PWA：Service Worker / Manifest / Icons 已就緒`
-5. 再用 Chrome 選單選「安裝應用程式」或「加到主畫面」。
-
-之後正常版本更新不用刪除 PWA 重裝。
-
-## 若仍然不能安裝
-
-把 GitHub Pages 的公開網址貼給心瑀。
-下一步直接檢查線上的：
-- manifest HTTP response
-- icon URL
-- sw.js URL
-- GitHub Pages path / base path
-而不是繼續猜。
+## GAS
+GAS 仍需保留：
+`.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);`
