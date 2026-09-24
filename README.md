@@ -57,3 +57,22 @@ GitHub Pages 是公開靜態網站；這包**沒有把你的 GAS URL 寫進 repo
 
 PWA 外殼、Logo、icon 可以離線開啟。
 GAS 聊天室是跨網域即時內容，因此離線時不會有聊天室資料。
+
+
+## v1.1 自動更新規則
+
+這版不需要刪除 PWA 再重新安裝。
+
+更新流程：
+1. 把新版檔案 push 到 GitHub Pages。
+2. 手機下次開啟 CONTINUE 時會呼叫 `registration.update()`。
+3. 新 Service Worker 安裝後會 `skipWaiting()`。
+4. 新 Worker 接管頁面時，外殼自動 reload 一次。
+5. `index.html` / navigation / manifest 使用 Network First，因此有網路時優先拿 GitHub 最新版。
+6. 舊 `continue-shell-*` cache 會自動刪除。
+
+圖示與其他靜態資產使用 stale-while-revalidate：先快速顯示快取，再背景更新。
+
+### 注意
+iOS 對「主畫面 App icon」本身有額外 OS 快取。
+程式/UI 更新不需重裝；但若未來真的更換 App icon，iPhone 可能不會立即刷新桌面圖示。
