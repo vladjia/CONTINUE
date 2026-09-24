@@ -1,78 +1,48 @@
-# CONTINUE PWA SHELL
+# CONTINUE PWA SHELL v1.2 — Android / Chrome Fix
 
-這包是 GitHub Pages 外殼，不是 GAS 本體。
+這版針對「GitHub Pages 瀏覽器能開，但 Android Chrome PWA 無法安裝／無法開啟應用程式」調整。
 
-## 架構
+## 主要修正
 
-GitHub Pages / PWA
-→ iframe
-→ Google Apps Script Web App
-→ Google Sheets / CONTINUE ROOM
+- Manifest 加入穩定 `id: "./"`
+- `start_url` 改為明確的 `./index.html?pwa=1`
+- 保留 `scope: "./"`，適合 GitHub Pages 專案子路徑
+- 192 / 512 icon 明確標示 `purpose: "any"`
+- 512 maskable icon 獨立保留
+- Service Worker 不再使用 `cache.addAll()`
+- 任一暫時 404 / 尚未同步的素材，不會讓整個 SW 安裝失敗
+- 保留 skipWaiting / clients.claim / 自動更新
+- 頁面初次設定畫面會顯示 PWA 基本狀態檢查
 
-## GitHub Pages 安裝
+## 更新 GitHub
 
-1. 新建 GitHub repository，例如 `continue-room`
-2. 把這個資料夾內的所有檔案放到 repository 根目錄
-3. GitHub → Settings → Pages
-4. Build and deployment:
-   - Source: Deploy from a branch
-   - Branch: `main`
-   - Folder: `/ (root)`
-5. Save
-6. 等 GitHub Pages 網址出現
-7. 打開頁面
-8. 第一次會要求貼 GAS Web App 的 `/exec` 網址
-9. 貼一次後會儲存在該裝置 localStorage，不會寫進 GitHub
+直接把 ZIP 內所有檔案覆蓋 repository 根目錄：
+- index.html
+- manifest.webmanifest
+- sw.js
+- icons/
 
-## 手機安裝 PWA
+commit / push 後，等 GitHub Pages 部署完成。
 
-### Android / Chrome
-開啟 GitHub Pages 網址 → 瀏覽器選單 →「安裝應用程式」或「加到主畫面」。
+## Android Chrome 測試
 
-### iPhone / Safari
-開啟 GitHub Pages 網址 → 分享 →「加入主畫面」。
+1. 先在 Chrome 開 GitHub Pages 網址。
+2. 若你之前開過舊版：
+   - Chrome 網站設定 → 該網站 → 清除資料（只需測試期間做這一次）
+   - 或改用無痕視窗先確認新版載入。
+3. 重新開頁面。
+4. 第一次設定頁底下應看到：
+   `PWA：Service Worker / Manifest / Icons 已就緒`
+5. 再用 Chrome 選單選「安裝應用程式」或「加到主畫面」。
 
-## GAS 必要條件
+之後正常版本更新不用刪除 PWA 重裝。
 
-GAS `doGet()` 需要保留：
+## 若仍然不能安裝
 
-```javascript
-.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-```
-
-否則 iframe 會被擋住。
-
-## 重要：登入 / 隱私
-
-GitHub Pages 是公開靜態網站；這包**沒有把你的 GAS URL 寫進 repo**，
-而是第一次由你在裝置上輸入並保存在 localStorage。
-
-但是，GAS 自己的存取權限仍然決定誰能看到聊天室。
-若 GAS 需要 Google 登入，部分手機瀏覽器 / PWA 的 iframe 可能遇到第三方登入 Cookie 限制。
-
-不要為了讓 iframe 比較省事，就直接把私人聊天室設成完全公開。
-若登入真的卡住，下一步應該做的是 CONTINUE 自己的驗證層，而不是裸開公開權限。
-
-## 目前離線能力
-
-PWA 外殼、Logo、icon 可以離線開啟。
-GAS 聊天室是跨網域即時內容，因此離線時不會有聊天室資料。
-
-
-## v1.1 自動更新規則
-
-這版不需要刪除 PWA 再重新安裝。
-
-更新流程：
-1. 把新版檔案 push 到 GitHub Pages。
-2. 手機下次開啟 CONTINUE 時會呼叫 `registration.update()`。
-3. 新 Service Worker 安裝後會 `skipWaiting()`。
-4. 新 Worker 接管頁面時，外殼自動 reload 一次。
-5. `index.html` / navigation / manifest 使用 Network First，因此有網路時優先拿 GitHub 最新版。
-6. 舊 `continue-shell-*` cache 會自動刪除。
-
-圖示與其他靜態資產使用 stale-while-revalidate：先快速顯示快取，再背景更新。
-
-### 注意
-iOS 對「主畫面 App icon」本身有額外 OS 快取。
-程式/UI 更新不需重裝；但若未來真的更換 App icon，iPhone 可能不會立即刷新桌面圖示。
+把 GitHub Pages 的公開網址貼給心瑀。
+下一步直接檢查線上的：
+- manifest HTTP response
+- icon URL
+- sw.js URL
+- GitHub Pages path / base path
+而不是繼續猜。

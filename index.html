@@ -210,6 +210,7 @@
       <div class="hint">
         若之後重新部署 GAS 而網址改變，可按右上角「⋯」重新設定。
         GitHub Pages 本身只負責 PWA 外殼；聊天室內容仍由 GAS 載入。
+        <div id="pwaStatus" style="margin-top:10px;color:#8f8e95">PWA：檢查中…</div>
       </div>
     </div>
   </section>
@@ -318,6 +319,42 @@
       }
     });
   }
+
+  // Lightweight Android/Chrome install diagnostics.
+  const pwaStatus = document.getElementById('pwaStatus');
+  async function updatePwaStatus(){
+    if (!pwaStatus) return;
+    if (!('serviceWorker' in navigator)) {
+      pwaStatus.textContent = 'PWA：此瀏覽器不支援 Service Worker';
+      return;
+    }
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      const manifestResp = manifestLink
+        ? await fetch(manifestLink.href, {cache:'no-store'})
+        : null;
+
+      if (!manifestResp || !manifestResp.ok) {
+        pwaStatus.textContent = 'PWA：manifest 讀取失敗';
+        return;
+      }
+
+      const manifest = await manifestResp.json();
+      const has192 = (manifest.icons || []).some(i => i.sizes === '192x192');
+      const has512 = (manifest.icons || []).some(i => i.sizes === '512x512');
+
+      if (reg && has192 && has512) {
+        pwaStatus.textContent = 'PWA：Service Worker / Manifest / Icons 已就緒';
+      } else {
+        pwaStatus.textContent = 'PWA：安裝條件尚未完整';
+      }
+    } catch (e) {
+      pwaStatus.textContent = 'PWA：檢查失敗 — ' + (e.message || e);
+    }
+  }
+  window.addEventListener('load', () => setTimeout(updatePwaStatus, 700));
+
 </script>
 </body>
 </html>

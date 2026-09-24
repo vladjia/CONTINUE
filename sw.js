@@ -1,53 +1,69 @@
-const CACHE = 'continue-shell-v1.1';
-const SHELL = [
-  './',
+const CACHE = 'continue-shell-v1.2';
+const CORE = [
   './index.html',
   './manifest.webmanifest',
-  './icons/icon-32.png',
-  './icons/icon-64.png',
-  './icons/icon-128.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png'
 ];
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(SHELL))
+async function cacheCoreBestEffort() {
+  const cache = await caches.open(CACHE);
+
+  // Do NOT use cache.addAll().
+  // One temporarily missing GitHub Pages asset must not abort the whole SW install.
+  await Promise.allSettled(
+    CORE.map(async (url) => {
+      try {
+        const response = await fetch(url, { cache: 'reload' });
+        if (response && response.ok) {
+          await cache.put(url, response.clone());
+        }
+      } catch (_) {
+        // Best effort only. Install must still succeed.
+      }
+    })
   );
+}
+
+self.addEventListener('install', event => {
+  event.waitUntil(cacheCoreBestEffort());
   self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(
         keys
           .filter(key => key.startsWith('continue-shell-') && key !== CACHE)
           .map(key => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
+      );
+      await self.clients.claim();
+    })()
   );
 });
 
-async function networkFirst(request) {
+async function navigationNetworkFirst(request) {
   try {
-    // Avoid stale HTTP-cache copies when checking app-shell files.
-    const fresh = await fetch(request, { cache: 'no-store' });
-    if (fresh && fresh.ok) {
+    const response = await fetch(request, { cache: 'no-store' });
+    if (response && response.ok) {
       const cache = await caches.open(CACHE);
-      cache.put(request, fresh.clone());
+      // Cache canonical index as offline fallback.
+      const indexResponse = await fetch('./index.html', { cache: 'no-store' }).catch(() => null);
+      if (indexResponse && indexResponse.ok) {
+        await cache.put('./index.html', indexResponse.clone());
+      }
     }
-    return fresh;
-  } catch (err) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-
-    // For navigation, fall back to cached root/index.
-    if (request.mode === 'navigate') {
-      return (await caches.match('./index.html')) || (await caches.match('./'));
-    }
-    throw err;
+    return response;
+  } catch (_) {
+    return (
+      await caches.match('./index.html')
+    ) || new Response(
+      '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="background:#09090b;color:white;font-family:sans-serif;padding:24px">CONTINUE ROOM 目前離線。連上網路後再開一次。</body>',
+      {headers:{'Content-Type':'text/html; charset=utf-8'}}
+    );
   }
 }
 
@@ -55,38 +71,29 @@ async function staleWhileRevalidate(request) {
   const cache = await caches.open(CACHE);
   const cached = await cache.match(request);
 
-  const networkPromise = fetch(request)
-    .then(response => {
+  const network = fetch(request, { cache: 'no-cache' })
+    .then(async response => {
       if (response && response.ok) {
-        cache.put(request, response.clone());
+        await cache.put(request, response.clone());
       }
       return response;
     })
     .catch(() => null);
 
-  return cached || (await networkPromise);
+  return cached || (await network) || Response.error();
 }
 
 self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // GAS iframe is cross-origin; do not intercept/cache it here.
+  // Never intercept the cross-origin GAS iframe.
   if (url.origin !== self.location.origin) return;
 
-  const pathname = url.pathname;
-
-  // HTML / navigation / manifest: always prefer the newest network copy.
-  if (
-    request.mode === 'navigate' ||
-    pathname.endsWith('/index.html') ||
-    pathname.endsWith('/manifest.webmanifest') ||
-    pathname.endsWith('/')
-  ) {
-    event.respondWith(networkFirst(request));
+  if (request.mode === 'navigate') {
+    event.respondWith(navigationNetworkFirst(request));
     return;
   }
 
-  // Icons/static shell: render immediately from cache, refresh quietly behind it.
   event.respondWith(staleWhileRevalidate(request));
 });
