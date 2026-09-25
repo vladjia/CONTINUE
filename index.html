@@ -81,6 +81,36 @@
       object-fit:contain;
       background:#000;
     }
+    /* 影片播完但聊天室還沒好：停在最後一格，下面浮一行小字 */
+    #splashWait{
+      position:absolute;
+      left:50%;
+      bottom:calc(42px + env(safe-area-inset-bottom));
+      transform:translateX(-50%);
+      display:flex;
+      align-items:center;
+      gap:9px;
+      color:rgba(245,244,240,.72);
+      font-size:12px;
+      letter-spacing:.14em;
+      white-space:nowrap;
+      opacity:0;
+      transition:opacity .3s ease;
+      pointer-events:none;
+    }
+    #splash.waiting #splashWait{
+      opacity:1;
+      transition-delay:.45s;
+    }
+    #splashWait i{
+      width:12px;
+      height:12px;
+      border:2px solid rgba(227,173,46,.25);
+      border-top-color:var(--gold);
+      border-radius:50%;
+      animation:splashSpin .72s linear infinite;
+    }
+    @keyframes splashSpin{to{transform:rotate(360deg)}}
     #setup{
       height:100%;
       display:grid;
@@ -207,6 +237,7 @@
     <video id="splashVideo" autoplay muted playsinline preload="auto">
       <source src="/CONTINUE/CONTINUE_splash_B_v7.mp4?v=7" type="video/mp4">
     </video>
+    <div id="splashWait"><i></i><span>聊天室接上中</span></div>
   </div>
 
   <iframe
@@ -253,32 +284,79 @@
 <script>
   const STORAGE_KEY = 'continue_room_gas_url_v1';
 
-  // CONTINUE launch splash. The ROOM loads behind it while the film plays.
+  // ── 開場：影片播完「而且」聊天室真的畫好了，才掀開 ──
+  // 聊天室（GAS 的 Index.html）第一次畫完會 postMessage 過來：
+  //   hello  → 程式開始跑了（新版聊天室才會送）
+  //   ready  → 訊息、隊員、Relay 都畫好了
+  //   failed → 讀取失敗（照樣放行，讓人看得到錯誤，不能卡在開場）
   const splash = document.getElementById('splash');
   const splashVideo = document.getElementById('splashVideo');
   let splashFinished = false;
+  let videoDone = false;     // 影片播完（或播不了）
+  let roomWanted = false;    // 這次開場後面有要載聊天室（第一次設定畫面就不用等）
+  let roomReady = false;     // 聊天室說它好了
+  let helloSeen = false;     // 聊天室有回報（舊版聊天室不會送，就不等它）
+  let noHelloTimer = null;
+  let readyByGuess = false;  // 是「猜它是舊版」放行的，不是聊天室自己說好
+
+  const VIDEO_FUSE = 7000;   // 影片卡住：7 秒當作播完
+  const HARD_FUSE  = 15000;  // 不管怎樣，15 秒一定掀開
+  const NO_HELLO_GRACE = 4000; // iframe 載完 4 秒還沒聽到 hello → 當成舊版聊天室，不等
 
   function finishSplash(){
     if (splashFinished) return;
     splashFinished = true;
+    clearTimeout(noHelloTimer);
     if (splash) splash.classList.add('hide');
     setTimeout(()=>{
       if (splash && splash.parentNode) splash.remove();
     }, 380);
   }
 
+  function maybeFinish(){
+    if (splashFinished || !videoDone) return;
+    if (!roomWanted || roomReady) return finishSplash();
+    if (splash) splash.classList.add('waiting');
+  }
+
+  function videoFinished(){
+    if (videoDone) return;
+    videoDone = true;
+    maybeFinish();
+  }
+
   if (splashVideo){
     splashVideo.muted = true;
-    splashVideo.addEventListener('ended', finishSplash, {once:true});
-    splashVideo.addEventListener('error', finishSplash, {once:true});
+    splashVideo.addEventListener('ended', videoFinished, {once:true});
+    splashVideo.addEventListener('error', videoFinished, {once:true});
     const playPromise = splashVideo.play();
     if (playPromise && typeof playPromise.catch === 'function'){
-      playPromise.catch(()=>finishSplash());
+      playPromise.catch(()=>videoFinished());
     }
+  } else {
+    videoDone = true;
   }
 
   // Escape hatch: a failed or stalled media request must never trap the app.
-  setTimeout(finishSplash, 7000);
+  setTimeout(videoFinished, VIDEO_FUSE);
+  setTimeout(finishSplash, HARD_FUSE);
+
+  const ROOM_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*(googleusercontent\.com|script\.google\.com)$/;
+  window.addEventListener('message', e=>{
+    const d = e.data;
+    if (!d || d.source !== 'continue-room') return;
+    if (!ROOM_ORIGIN.test(e.origin)) return;
+    if (d.type === 'hello'){
+      helloSeen = true;
+      clearTimeout(noHelloTimer);
+      if (readyByGuess){ roomReady = false; readyByGuess = false; } // 其實是新版，只是慢 → 繼續等 ready
+    } else if (d.type === 'ready' || d.type === 'failed'){
+      helloSeen = true;
+      roomReady = true;
+      clearTimeout(noHelloTimer);
+      maybeFinish();
+    }
+  });
 
   const room = document.getElementById('room');
   const setup = document.getElementById('setup');
@@ -286,6 +364,15 @@
   const connectBtn = document.getElementById('connectBtn');
   const menu = document.getElementById('menu');
   const toast = document.getElementById('toast');
+
+  room.addEventListener('load', ()=>{
+    if (splashFinished || !roomWanted || helloSeen) return;
+    if (!room.src || room.src === 'about:blank') return;
+    clearTimeout(noHelloTimer);
+    noHelloTimer = setTimeout(()=>{
+      if (!helloSeen){ roomReady = true; readyByGuess = true; maybeFinish(); }
+    }, NO_HELLO_GRACE);
+  });
 
   function toastMsg(msg){
     toast.textContent = msg;
@@ -306,6 +393,7 @@
   }
 
   function openRoom(url){
+    if (!splashFinished) roomWanted = true;
     room.src = url;
     room.style.display = 'block';
     setup.style.display = 'none';
@@ -315,6 +403,8 @@
   function showSetup(){
     const saved = localStorage.getItem(STORAGE_KEY) || '';
     gasInput.value = saved;
+    roomWanted = false;
+    maybeFinish();
     room.style.display = 'none';
     room.src = 'about:blank';
     setup.style.display = 'grid';
