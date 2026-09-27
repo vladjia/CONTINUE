@@ -1,12 +1,16 @@
-const CACHE = 'continue-shell-v1.4-splash';
+const CACHE = 'continue-shell-v1.5-c2';
 const APP_PATH = '/CONTINUE/';
+const ICON_V = '?v=c2';
 const CORE = [
   APP_PATH,
   APP_PATH + 'index.html',
   APP_PATH + 'manifest.webmanifest',
-  APP_PATH + 'icons/icon-192.png',
-  APP_PATH + 'icons/icon-512.png',
-  APP_PATH + 'icons/icon-maskable-512.png'
+  APP_PATH + 'icons/icon-32.png' + ICON_V,
+  APP_PATH + 'icons/apple-touch-icon.png' + ICON_V,
+  APP_PATH + 'icons/icon-192.png' + ICON_V,
+  APP_PATH + 'icons/icon-512.png' + ICON_V,
+  APP_PATH + 'icons/icon-maskable-192.png' + ICON_V,
+  APP_PATH + 'icons/icon-maskable-512.png' + ICON_V
 ];
 
 async function cacheCoreBestEffort() {
@@ -54,7 +58,7 @@ async function navigationNetworkFirst(request) {
     ) || (
       await caches.match(APP_PATH + 'index.html')
     ) || new Response(
-      '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="background:#09090b;color:white;font-family:sans-serif;padding:24px">CONTINUE ROOM 目前離線。連上網路後再開一次。</body>',
+      '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="background:#0A0A0A;color:#fff;font-family:sans-serif;padding:24px">CONTINUE ROOM 目前離線。連上網路後再開一次。</body>',
       {headers:{'Content-Type':'text/html; charset=utf-8'}}
     );
   }
